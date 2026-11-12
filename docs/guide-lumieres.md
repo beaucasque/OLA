@@ -82,14 +82,21 @@ Les majuscules ne comptent pas. Pour toute autre couleur, son code hexadécimal 
 ## 5. Un mot sur l'intensité
 
 Les décodeurs n'ont pas de canal de gradateur : l'intensité est obtenue en
-atténuant les valeurs de couleur avant de les envoyer. Conséquence pratique :
-**un ruban à 10 % ne donne pas 10 % de lumière perçue**. L'échelle est linéaire
-en DMX, pas pour l'œil, donc le bas de la plage paraît chuter plus vite que le
-haut. C'est normal, pas un défaut de réglage.
+atténuant les valeurs de couleur avant de les envoyer.
 
-En dessous de 10 %, les valeurs envoyées deviennent très petites (26 sur 255) et
-certains rubans commencent à scintiller ou à tirer vers une teinte un peu fausse,
-les trois canaux ne descendant pas exactement au même rythme.
+Le curseur est **corrigé pour l'œil** : 50 % donne bien une impression de moitié
+moins lumineux, 30 % de 30 %. Sans cette correction — c'était le cas au début —
+le haut du curseur semblait ne rien faire et tout s'effondrait dans le dernier
+tiers. Si tu retrouves ce comportement, c'est que la correction a sauté.
+
+Deux conséquences à connaître :
+
+- **En dessous de 20 %**, les valeurs envoyées deviennent très petites (7 sur 255
+  à 20 %, 2 à 10 %). Certains rubans commencent à scintiller ou à tirer vers une
+  teinte un peu fausse, les trois canaux ne descendant pas exactement au même
+  rythme. C'est une limite des 8 bits du DMX, pas un réglage à corriger.
+- **La couleur n'est pas affectée.** À 100 %, chaque couleur rend exactement comme
+  avant. Seule la façon dont l'intensité descend a changé.
 
 ## 6. Si ça ne marche pas
 

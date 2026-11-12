@@ -109,9 +109,34 @@ appliquée dans `ola-lights.py`, en multipliant les valeurs RGB juste avant
 l'envoi DMX. Couleur et intensité sont deux réglages **séparés** : descendre à
 0 % puis remonter restitue la couleur au lieu de la perdre.
 
-La gradation est linéaire en DMX, pas en luminosité perçue : le bas de l'échelle
-paraît chuter plus vite que le haut. Une courbe gamma se rajouterait dans
-`build_frame()`.
+### La courbe de gradation
+
+Le décodeur fait du **PWM linéaire** : à la valeur DMX 128, le ruban émet bien la
+moitié des photons — mais l'œil y voit environ 73 % de luminosité. Sans
+correction, le haut du curseur semble ne rien faire et le bas s'effondre.
+
+`brightness_factor()` élève donc le facteur à la puissance `GAMMA` (2,2 par
+défaut), ce qui rend le curseur linéaire **pour la perception** :
+
+| Curseur | DMX sans correction | DMX avec gamma | Luminosité perçue |
+|---|---|---|---|
+| 100 % | 255 | 255 | 100 % |
+| 70 % | 178 | 116 | 70 % |
+| 50 % | 128 | 55 | 50 % |
+| 30 % | 76 | 18 | 30 % |
+| 10 % | 26 | 2 | 11 % |
+
+La correction porte sur le **facteur d'intensité**, jamais sur les couleurs
+elles-mêmes : le rendu d'une couleur donnée à 100 % est inchangé.
+
+Réglable sans toucher au code, via le service : `Environment=GAMMA=2.2` dans
+`/etc/systemd/system/ola-lights.service`. `GAMMA=1` restaure l'ancien
+comportement linéaire.
+
+Revers de la médaille : en bas d'échelle les valeurs DMX deviennent minuscules
+(2 à 10 %, 7 à 20 %). Sur 8 bits il n'y a plus beaucoup de marche disponible, et
+c'est là que des rubans bon marché scintillent ou dérivent en teinte. Si c'est
+gênant, un `GAMMA` plus doux (1,8) relève le bas de la plage.
 
 ## 7. État persistant
 

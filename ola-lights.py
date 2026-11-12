@@ -27,6 +27,10 @@ STATE_FILE = os.environ.get("STATE_FILE", "/var/lib/ola-lights/state.json")
 MQTT_HOST = os.environ.get("MQTT_HOST", "127.0.0.1")
 MQTT_PORT = int(os.environ.get("MQTT_PORT", "1883"))
 MQTT_BASE = os.environ.get("MQTT_BASE", "lumieres")
+# Courbe de gradation. Les décodeurs font du PWM linéaire : la lumière émise suit
+# la valeur DMX, alors que l'œil, lui, ne la suit pas. 2.2 rend le curseur
+# d'intensité linéaire pour la perception. GAMMA=1 revient à l'ancien comportement.
+GAMMA = float(os.environ.get("GAMMA", "2.2"))
 
 # Adresse DMX de départ de chaque décodeur (4 canaux chacun : R, G, B, W inutilisé)
 ADDRESSES = [1, 5, 9]
@@ -42,16 +46,36 @@ mqtt_client = None
 
 
 # ---------------------------------------------------------------- DMX / OLA
+def brightness_factor():
+    """Facteur appliqué aux couleurs, corrigé pour la perception.
+
+    Le décodeur fait du PWM linéaire : à la valeur DMX 128, le ruban émet bien la
+    moitié des photons — mais l'œil y voit environ 73 % de luminosité, pas 50 %.
+    D'où l'impression que le haut du curseur ne fait rien et que le bas s'effondre.
+    Élever le facteur à la puissance GAMMA corrige ce décalage.
+
+    La correction porte sur le facteur d'intensité, jamais sur les couleurs
+    elles-mêmes : le rendu d'une couleur donnée à 100 % reste exactement ce qu'il
+    était.
+    """
+    if brightness >= 100:
+        return 1.0
+    if brightness <= 0:
+        return 0.0
+    return (brightness / 100) ** GAMMA
+
+
 def build_frame():
     """Trame DMX : la couleur de chaque zone, atténuée par l'intensité générale.
 
     Les décodeurs AKEPO n'ont pas de canal de gradateur maître : l'intensité est
     appliquée ici, en multipliant les valeurs RGB avant l'envoi.
     """
+    factor = brightness_factor()
     frame = [0] * FRAME_LEN
     for z, rgb in enumerate(state):
         base = ADDRESSES[z] - 1
-        frame[base:base + 3] = [round(c * brightness / 100) for c in rgb]
+        frame[base:base + 3] = [round(c * factor) for c in rgb]
     return frame
 
 
