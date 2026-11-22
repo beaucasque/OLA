@@ -360,6 +360,13 @@ HTML = """<!doctype html>
   .dimrow{display:flex;align-items:center;gap:12px}
   .dimrow input[type=range]{flex:1;min-width:0;accent-color:#eee;height:32px}
   button.step{flex:0 0 56px;font-size:22px;line-height:1;padding:12px 0}
+  #dimwarn{display:flex;align-items:center;gap:12px;background:#3a2e10;
+    border:1px solid #6b5416;color:#f0d08a;border-radius:12px;
+    padding:12px 14px;margin-bottom:12px;font-size:15px}
+  #dimwarn[hidden]{display:none}
+  #dimwarn span{flex:1}
+  #dimwarn button{flex:0 0 auto;background:#6b5416;color:#ffe9b8;
+    padding:10px 14px;font-size:14px}
 </style></head><body>
 <h1>Lumières</h1>
 <div id="zones"></div>
@@ -371,6 +378,10 @@ HTML = """<!doctype html>
     <input type="range" id="dim" min="0" max="100" step="10" value="100" aria-label="Intensité">
     <button class="step" id="dimup" aria-label="Monter de 10 %">+</button>
   </div>
+</div>
+<div id="dimwarn" hidden role="status">
+  <span>Intensité à 0 % : les couleurs sont enregistrées, mais rien ne s'allumera.</span>
+  <button id="dimfix">Remonter</button>
 </div>
 <div class="row" id="scenes"></div>
 <div id="msg"></div>
@@ -387,7 +398,8 @@ let last = 0, timer = null;
 function send(zone, color){
   fetch("/api/set",{method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({zone:zone,color:color})})
-   .then(r=>r.json()).then(j=>{document.getElementById("msg").textContent=j.ok?"":"OLA injoignable"})
+   .then(r=>r.json()).then(j=>{document.getElementById("msg").textContent=j.ok?"":"OLA injoignable";
+     if(j.intensite!==undefined) showDim(j.intensite)})
    .catch(()=>{document.getElementById("msg").textContent="Connexion perdue"});
 }
 function throttled(zone, color){
@@ -417,8 +429,12 @@ for(const [name,c] of SCENES){
 
 // Intensité générale, par pas de 10 %
 const dim=document.getElementById("dim"), dimval=document.getElementById("dimval");
+const dimwarn=document.getElementById("dimwarn");
 let dlast=0, dtimer=null;
-function showDim(v){dim.value=v;dimval.textContent=v+" %";}
+// À 0 %, toute couleur est multipliée par zéro : la page accepte les commandes
+// et les lumières restent éteintes. Sans ce bandeau, rien ne le signale.
+function warnDim(v){dimwarn.hidden = (+v !== 0);}
+function showDim(v){dim.value=v;dimval.textContent=v+" %";warnDim(v);}
 function sendDim(v){
   fetch("/api/set",{method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({intensite:v})})
@@ -432,10 +448,12 @@ function throttledDim(v){
   if(now-dlast>100){dlast=now;sendDim(v);}
   else dtimer=setTimeout(()=>{dlast=Date.now();sendDim(v)},100);
 }
-dim.addEventListener("input",()=>{dimval.textContent=dim.value+" %";throttledDim(+dim.value)});
+dim.addEventListener("input",()=>{dimval.textContent=dim.value+" %";
+  warnDim(dim.value);throttledDim(+dim.value)});
 dim.addEventListener("change",()=>sendDim(+dim.value));
 document.getElementById("dimdown").onclick=()=>sendDim("-");
 document.getElementById("dimup").onclick=()=>sendDim("+");
+document.getElementById("dimfix").onclick=()=>sendDim(100);
 
 fetch("/api/state").then(r=>r.json())
   .then(s=>{s.zones.forEach((c,i)=>inputs[i].value=c);showDim(s.intensite)}).catch(()=>{});
