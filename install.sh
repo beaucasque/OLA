@@ -54,6 +54,15 @@ set_ola_conf() {  # fichier clé valeur
 for _ in $(seq 1 15); do sudo test -f /etc/ola/ola-usbserial.conf && break; sleep 1; done
 set_ola_conf ola-usbserial.conf enabled true
 set_ola_conf ola-ftdidmx.conf enabled false
+
+echo "== Art-Net : émission en broadcast =="
+# En unicast (always_broadcast = false, le défaut), OLA n'émet que vers les nœuds
+# qui ont répondu à son ArtPoll. Le Pknight CR001R cesse d'y répondre après une
+# coupure de courant : OLA n'envoie alors plus rien, en silence, alors que tout
+# a l'air correct (l'univers est patché, get_dmx renvoie les bonnes valeurs, le
+# nœud répond au ping). Le broadcast évite cette panne muette ; sur un petit
+# réseau son coût est négligeable.
+set_ola_conf ola-artnet.conf always_broadcast true
 sudo systemctl restart olad
 
 if [ "${SKIP_MQTT:-0}" != "1" ]; then

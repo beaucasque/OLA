@@ -76,17 +76,40 @@ ola_patch -d 2 -p 1 -u 1          # port 1 = univers Art-Net 1
 - **Décodeurs** : adresses 1, 5 et 9 ; réglages H (mode) et S (vitesse) en DMX normal.
 - **Test** : `ola_set_dmx -u 1 -d 255,0,0` allume la zone 1 en rouge.
 
-### Unicast
+### Broadcast, et pourquoi pas l'unicast
 
-`/etc/ola/ola-artnet.conf` est en `always_broadcast = false`. OLA **n'a pas de champ
-« IP de destination »** : en unicast, il envoie aux nœuds qui ont répondu à son
-ArtPoll. Le CR001R répond correctement, donc rien à faire. Si un nœud restait muet
-alors qu'il est joignable au ping, le repli est :
+`/etc/ola/ola-artnet.conf` est en **`always_broadcast = true`**. Ce n'est pas le
+défaut d'OLA, c'est un choix fait après une panne.
+
+OLA **n'a pas de champ « IP de destination »** : en unicast il émet uniquement
+vers les nœuds qui ont répondu à son ArtPoll. Le CR001R répondait le jour de
+l'installation, puis a cessé de le faire — vraisemblablement après une coupure de
+courant. Résultat le 21 novembre : **plus un seul paquet Art-Net émis**, alors que
+tout semblait correct par ailleurs — univers patché, `get_dmx` renvoyant les
+bonnes valeurs, API répondant `ok: true`, nœud répondant au ping.
+
+C'est une panne muette : rien dans les logs, aucune erreur nulle part. Le
+broadcast la supprime, et sur un réseau domestique son coût est négligeable.
+
+> **`get_dmx` ne prouve rien sur l'émission.** Il montre ce qu'OLA *détient* dans
+> son tampon d'univers, pas ce qu'il *transmet*. Les deux peuvent diverger, et
+> c'est exactement ce qui s'est produit. De même, répondre au ping (ICMP) et
+> répondre à l'Art-Net sont deux choses distinctes.
+
+### Vérifier que des paquets sortent vraiment
+
+Le trafic vers `localhost` passe par `lo`, donc les compteurs d'`eth0` ne
+mesurent que ce qui part réellement sur le réseau :
 
 ```bash
-sudo sed -i 's/^always_broadcast = false/always_broadcast = true/' /etc/ola/ola-artnet.conf
-sudo systemctl restart olad
+TX=/sys/class/net/eth0/statistics/tx_packets
+a=$(cat $TX); sleep 3; b=$(cat $TX); echo "repos : $((b-a))"
+a=$(cat $TX)
+for i in $(seq 1 20); do curl -s "localhost:8080/all/$([ $((i%2)) -eq 0 ] && echo rouge || echo bleu)" >/dev/null; done
+b=$(cat $TX); echo "20 changements : $((b-a))"
 ```
+
+Si le second chiffre n'est pas nettement supérieur au premier, OLA n'émet pas.
 
 ## 6. Contrôle
 

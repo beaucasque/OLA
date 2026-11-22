@@ -104,16 +104,24 @@ Deux conséquences à connaître :
 |---|---|
 | La page ne s'ouvre pas | Le Pi est-il allumé et sur le réseau ? En SSH : `sudo systemctl status ola-lights` |
 | « OLA injoignable » | `sudo systemctl restart olad`, puis réessaie après 10 secondes |
-| La page répond mais rien ne s'allume | L'intensité n'est-elle pas à 0 % ? Nœud Art-Net alimenté, en mode `artnet -> dmx` ? Décodeurs alimentés et adressés à 1, 5 et 9 ? Teste la DMX Console d'OLA : http://192.168.1.45:9090 |
+| La page répond mais rien ne s'allume | D'abord : l'intensité n'est-elle pas à 0 % ? Ensuite : nœud Art-Net alimenté, en mode `artnet -> dmx` ? Décodeurs alimentés et adressés à 1, 5 et 9 ? |
+| Tout a l'air bon et rien ne s'allume quand même | Après une coupure de courant du nœud Art-Net, OLA peut cesser de lui envoyer quoi que ce soit, sans la moindre erreur. `sudo systemctl restart olad` suffit en général. Si ça revient, voir `handout.md`, section « Broadcast, et pourquoi pas l'unicast » |
 | Tout est très sombre | Intensité au minimum : `curl http://192.168.1.45:8080/intensite/100` |
 | Une seule zone ne réagit pas | Vérifie l'adresse de ce décodeur et le câble RJ45 qui y mène (Signal Out vers Signal In) |
 | Mauvaises couleurs (rouge et vert inversés…) | Câblage du ruban sur le décodeur : CH1 = rouge, CH2 = vert, CH3 = bleu |
 | Après une panne de courant | Rien à faire : la dernière couleur et la dernière intensité reviennent seules |
 
-Pour voir ce que le Pi envoie vraiment, sans dépendre des lampes :
+Pour voir les couleurs que le Pi a enregistrées, sans dépendre des lampes :
 
 ```bash
 curl 'http://192.168.1.45:9090/get_dmx?u=1'
 ```
 
 Les 12 premiers canaux correspondent aux trois zones : 1-3, 5-7, 9-11.
+
+⚠️ **Attention à ce que cette commande prouve.** Elle montre les valeurs qu'OLA
+*détient*, pas celles qu'il *envoie* sur le réseau. Les deux peuvent diverger :
+c'est arrivé le 21 novembre, où tout semblait parfait ici alors qu'aucun paquet
+ne partait vers le nœud Art-Net. Si les valeurs sont bonnes et que les lumières
+restent éteintes, c'est la piste à suivre — voir `handout.md`, section
+« Vérifier que des paquets sortent vraiment ».
